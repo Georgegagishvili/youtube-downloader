@@ -3,7 +3,7 @@
 An easy-to-use desktop application for downloading YouTube videos and audio.
 Built with Python and `ttkbootstrap`, this tool provides a simple graphical interface to download videos in various formats and qualities.
 
-![App Image](https://i.imgur.com/LTNAWV0.png)
+![App Image](https://i.imgur.com/Gao4jIw.png)
 
 ## Features
 

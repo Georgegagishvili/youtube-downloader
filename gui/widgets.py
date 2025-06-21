@@ -38,27 +38,27 @@ class ButtonsFrame(ttk.Frame):
     def __init__(self, parent, fetch_command, download_video_command, download_audio_command, download_full_command,
                  **kwargs):
         super().__init__(parent, **kwargs)
-        self.pack(pady=15, padx=10, fill=X)
+        self.columnconfigure((0, 1), weight=1)
 
         self.fetch_button = ttk.Button(
-            self, text="Fetch Options", command=fetch_command, bootstyle=SECONDARY
+            self, text="Get Options", command=fetch_command, bootstyle=SECONDARY
         )
-        self.fetch_button.pack(side=LEFT, expand=True, fill=X, padx=(0, 5))
+        self.fetch_button.grid(row=0, column=0, sticky="ew", padx=(0, 2), pady=(0, 5))
 
         self.download_video_button = ttk.Button(
             self, text="Download Video", command=download_video_command
         )
-        self.download_video_button.pack(side=LEFT, expand=True, fill=X, padx=(0, 5))
+        self.download_video_button.grid(row=0, column=1, sticky="ew", padx=(2, 0), pady=(0, 5))
 
         self.download_audio_button = ttk.Button(
             self, text="Download Audio", command=download_audio_command
         )
-        self.download_audio_button.pack(side=LEFT, expand=True, fill=X, padx=(0, 5))
+        self.download_audio_button.grid(row=1, column=0, sticky="ew", padx=(0, 2))
 
         self.download_full_button = ttk.Button(
             self, text="Download Full", command=download_full_command, bootstyle=SUCCESS
         )
-        self.download_full_button.pack(side=LEFT, expand=True, fill=X)
+        self.download_full_button.grid(row=1, column=1, sticky="ew", padx=(2, 0))
 
 
 class DownloadPathFrame(ttk.Frame):

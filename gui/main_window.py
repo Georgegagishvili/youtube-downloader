@@ -26,7 +26,7 @@ class App(ttk.Window):
         self.title("YouTube Downloader")
 
         window_width = 800
-        window_height = 420
+        window_height = 360
 
         self.geometry(f"{window_width}x{window_height}")
         self.resizable(False, False)
@@ -50,7 +50,7 @@ class App(ttk.Window):
     def _create_widgets(self):
         # Create frames
         self.url_frame = URLInputFrame(self)
-
+        
         self.download_path_frame = DownloadPathFrame(self)
         self.download_path_frame.browse_button.config(command=self._choose_download_path)
 
@@ -59,21 +59,29 @@ class App(ttk.Window):
         details_frame.columnconfigure(0, weight=1)
 
         self.options_frame = OptionsFrame(details_frame, self.selected_resolution, self.selected_audio_quality)
-        self.options_frame.grid(row=0, column=0, sticky="nsew")
-
-        thumbnail_placeholder = ttk.Frame(details_frame, width=240, height=135)
-        thumbnail_placeholder.grid(row=0, column=1, padx=(20, 0), sticky="ne")
-        thumbnail_placeholder.grid_propagate(False)
-        self.thumbnail_label = ttk.Label(thumbnail_placeholder, anchor="center")
-        self.thumbnail_label.pack(expand=True, fill="both")
+        self.options_frame.grid(row=0, column=0, sticky="ew", pady=(0, 10))
 
         self.buttons_frame = ButtonsFrame(
-            self,
+            details_frame,
             self.fetch_options,
             lambda: self.threaded_download("video"),
             lambda: self.threaded_download("audio"),
             lambda: self.threaded_download("full")
         )
+        self.buttons_frame.grid(row=1, column=0, sticky="ew")
+
+        # Blank image as a placeholder to prevent UI displacement
+        placeholder_img = Image.new('RGB', (240, 135), color='#ECECEC')
+        self.placeholder_photo = ImageTk.PhotoImage(placeholder_img)
+        self.thumbnail_label = ttk.Label(
+            details_frame,
+            image=self.placeholder_photo,
+            text="Image Preview",
+            compound="center",
+            foreground="black"
+        )
+        self.thumbnail_label.grid(row=0, column=1, rowspan=2, padx=(20, 0), sticky="ne")
+
         self.progress_frame = ProgressFrame(self, self.progress_var)
 
     def _collect_interactive_widgets(self):
@@ -137,7 +145,7 @@ class App(ttk.Window):
         img = Image.open(BytesIO(img_data))
         img.thumbnail((240, 135))
         photo_image = ImageTk.PhotoImage(img)
-        self.thumbnail_label.config(image=photo_image)
+        self.thumbnail_label.config(image=photo_image, text="")
         self.thumbnail_label.image = photo_image
 
         # Update resolution dropdown
