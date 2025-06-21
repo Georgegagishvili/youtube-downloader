@@ -12,6 +12,9 @@
 # VSCode settings (optional, if you use VSCode)
 .vscode/
 
+# PyCharm
+.idea/
+
 # Environment files
 .env
 venv/
