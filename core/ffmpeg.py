@@ -1,27 +1,26 @@
 import os
 import subprocess
+
 from imageio_ffmpeg import get_ffmpeg_exe
 
 
-def merge_video_audio(label):
+def merge_video_audio(video_path: str, audio_path: str, output_path: str, label):
     label.config(text="Merging video and audio...")
     label.update()
     ffmpeg_path = get_ffmpeg_exe()
 
-    video_name = 'temp_video.mp4'
-    audio_name = 'temp_audio.mp4'
     subprocess.run([
         ffmpeg_path,
         "-y",
-        "-i", video_name,
-        "-i", audio_name,
+        "-i", video_path,
+        "-i", audio_path,
         "-c:v", "copy",
         "-c:a", "aac",
-        "video.mp4"
+        output_path
     ])
 
-    os.remove(video_name)
-    os.remove(audio_name)
+    os.remove(video_path)
+    os.remove(audio_path)
 
     label.config(text="Merging complete!")
     label.update()

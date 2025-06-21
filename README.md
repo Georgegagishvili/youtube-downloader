@@ -1,43 +1,56 @@
 # YouTube Downloader
 
-A simple Python application to download YouTube videos with a GUI interface.
+An easy-to-use desktop application for downloading YouTube videos and audio.
+Built with Python and `ttkbootstrap`, this tool provides a simple graphical interface to download videos in various formats and qualities.
 
-## Project Structure
+## Features
 
-```plaintext
-assets/
-└── yt.ico               # Application icon
+- **Download Modes**: Choose between downloading video-only, audio-only, or a complete video with merged audio.
+- **Quality Selection**:
+  - Automatically fetches available video resolutions (e.g., 1080p, 720p).
+  - Automatically fetches available audio qualities (e.g., 128kbps).
+- **Custom Download Path**: A "Browse" button allows you to select any folder on your computer to save your downloads.
+- **Real-time Progress**: A progress bar and text labels provide instant feedback on download speed, size, and status.
 
-core/
-├── __init__.py
-├── downloader.py        # YouTube video download logic
-├── ffmpeg.py            # Video/audio merging utilities using ffmpeg
-├── progress.py          # Download progress tracking
-└── utils.py             # Helper functions
+## Getting Started
 
-gui/
-├── __init__.py
-├── main_window.py       # Main GUI window implementation
-└── widgets.py           # (Empty, ToDo) Custom widgets for GUI
-```
+### Installation
 
-## Requirements
+1.  **Clone the repository:**
 
-- Python 3.13
-- tkinter
-- pytubefix
-- imageio_ffmpeg
+    ```bash
+    git clone https://github.com/Georgegagishvili/youtube-downloader
+    cd youtube-downloader
+    ```
+
+2.  **Install the required Python packages:**
+    A `requirements.txt` file is provided to easily install all necessary dependencies.
+    ```bash
+    pip install -r requirements.txt
+    ```
 
 ## Usage
 
-Run the application:
+To run the application, execute the `app.py` script from the root directory of the project:
 
 ```bash
 python app.py
 ```
 
+## Project Structure
 
-## TODO
-- Implement custom widgets in gui/widgets.py
-- Add more features and improve UI/UX
-
+```
+ytdowner/
+├── app.py                  # Main application entry point
+├── requirements.txt        # Project dependencies
+├── assets/
+│   └── yt.ico              # Application icon
+├── core/
+│   ├── downloader.py       # Handles YouTube video/audio fetching and downloading
+│   ├── ffmpeg.py           # Manages video/audio merging with ffmpeg
+│   ├── progress.py         # Logic for tracking download progress
+│   └── utils.py            # Utility functions (e.g., formatting file sizes)
+└── gui/
+    ├── main_window.py      # The main application class and window
+    └── widgets.py          # Custom ttkbootstrap widgets
+```

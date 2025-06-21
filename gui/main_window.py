@@ -1,164 +1,198 @@
-import tkinter as tk
-from tkinter import ttk, messagebox
+import threading
+import requests
+import ttkbootstrap as ttk
+
+from io import BytesIO
 from typing import Optional
-from threading import Thread
+from pytubefix import YouTube
+from PIL import Image, ImageTk
+from tkinter import messagebox, filedialog
 
 from core import (
-    fetch_resolutions,
-    fetch_audio_qualities,
     download_video_audio,
     download_video,
     download_audio,
+    ProgressTracker,
+    fetch_resolutions,
+    fetch_audio_qualities,
 )
-from core import ProgressTracker
-
-available_resolutions: list[str] = []
-available_audio_qualities: list[str] = []
-
-selected_resolution: Optional[tk.StringVar] = None
-selected_audio_quality: Optional[tk.StringVar] = None
-
-progress_var: Optional[tk.IntVar] = None
-progress_label: Optional[tk.Label] = None
-size_label: Optional[tk.Label] = None
-merge_label: Optional[tk.Label] = None
-url_entry: Optional[tk.Entry] = None
-resolution_dropdown: Optional[ttk.Combobox] = None
-audio_dropdown: Optional[ttk.Combobox] = None
-
-window_width = 620
-window_height = 250
+from .widgets import URLInputFrame, OptionsFrame, ButtonsFrame, ProgressFrame, DownloadPathFrame
 
 
-def create_main_window():
-    global selected_resolution, selected_audio_quality
-    global progress_var, progress_label, size_label, merge_label
-    global url_entry, resolution_dropdown, audio_dropdown
+class App(ttk.Window):
+    def __init__(self):
+        super().__init__(themename="darkly")
 
-    root = tk.Tk()
-    root.title("YouTube Video & Audio Downloader")
-    root.geometry(f"{window_width}x{window_height}")
+        self.title("YouTube Downloader")
 
-    screen_width = root.winfo_screenwidth()
-    screen_height = root.winfo_screenheight() - 250
+        window_width = 800
+        window_height = 420
 
-    x = int((screen_width / 2) - (window_width / 2))
-    y = int((screen_height / 2) - (window_height / 1.5))
+        self.geometry(f"{window_width}x{window_height}")
+        self.resizable(False, False)
 
-    root.geometry(f"{window_width}x{window_height}+{x}+{y}")
+        # Center window
+        self.update_idletasks()
+        screen_width = self.winfo_screenwidth()
+        screen_height = self.winfo_screenheight()
+        x = (screen_width // 2) - (window_width // 2)
+        y = (screen_height // 2) - (window_height // 2) - 50  # Move up a bit
+        self.geometry(f"+{x}+{y}")
 
-    selected_resolution = tk.StringVar()
-    selected_audio_quality = tk.StringVar()
+        self.yt: Optional[YouTube] = None
+        self.selected_resolution = ttk.StringVar()
+        self.selected_audio_quality = ttk.StringVar()
+        self.progress_var = ttk.IntVar()
 
-    # Row 1: URL Input
-    row1 = tk.Frame(root)
-    row1.pack(pady=(10, 0))
-    tk.Label(row1, text="YouTube URL:").pack(side='left', padx=(0, 5))
-    url_entry = tk.Entry(row1, width=50)
-    url_entry.pack(side='left')
+        self._create_widgets()
+        self._collect_interactive_widgets()
 
-    # Row 2: Resolution + Audio Quality
-    row2 = tk.Frame(root)
-    row2.pack(pady=(10, 0))
+    def _create_widgets(self):
+        # Create frames
+        self.url_frame = URLInputFrame(self)
 
-    tk.Label(row2, text="Resolution:").pack(side='left', padx=(5, 5))
-    resolution_dropdown = ttk.Combobox(row2, textvariable=selected_resolution, state='disabled', width=15)
-    resolution_dropdown.pack(side='left', padx=(0, 20))
+        self.download_path_frame = DownloadPathFrame(self)
+        self.download_path_frame.browse_button.config(command=self._choose_download_path)
 
-    tk.Label(row2, text="Audio Quality:").pack(side='left', padx=(5, 5))
-    audio_dropdown = ttk.Combobox(row2, textvariable=selected_audio_quality, state='disabled', width=15)
-    audio_dropdown.pack(side='left')
+        details_frame = ttk.Frame(self)
+        details_frame.pack(pady=5, padx=10, fill=ttk.X)
+        details_frame.columnconfigure(0, weight=1)
 
-    # Row 3: Buttons
-    row3 = tk.Frame(root)
-    row3.pack(pady=(15, 5))
+        self.options_frame = OptionsFrame(details_frame, self.selected_resolution, self.selected_audio_quality)
+        self.options_frame.grid(row=0, column=0, sticky="nsew")
 
-    tk.Button(row3, text="Fetch Options", command=fetch_options).pack(side='left', padx=10)
-    tk.Button(row3, text="Download Video", command=lambda: threaded_download("video", root)).pack(side='left', padx=5)
-    tk.Button(row3, text="Download Audio", command=lambda: threaded_download("audio", root)).pack(side='left', padx=5)
-    tk.Button(row3, text="Download Full", command=lambda: threaded_download("full", root)).pack(side='left', padx=5)
+        thumbnail_placeholder = ttk.Frame(details_frame, width=240, height=135)
+        thumbnail_placeholder.grid(row=0, column=1, padx=(20, 0), sticky="ne")
+        thumbnail_placeholder.grid_propagate(False)
+        self.thumbnail_label = ttk.Label(thumbnail_placeholder, anchor="center")
+        self.thumbnail_label.pack(expand=True, fill="both")
 
-    # Progress Bar and Labels
-    progress_var = tk.IntVar()
-    progress_bar = ttk.Progressbar(root, orient='horizontal', length=500, mode='determinate', variable=progress_var)
-    progress_bar.pack(pady=(10, 0))
+        self.buttons_frame = ButtonsFrame(
+            self,
+            self.fetch_options,
+            lambda: self.threaded_download("video"),
+            lambda: self.threaded_download("audio"),
+            lambda: self.threaded_download("full")
+        )
+        self.progress_frame = ProgressFrame(self, self.progress_var)
 
-    progress_label = tk.Label(root, text="Progress: 0%")
-    progress_label.pack(pady=(20, 0))
+    def _collect_interactive_widgets(self):
+        self.interactive_widgets = [
+            self.url_frame.url_entry,
+            self.download_path_frame.browse_button,
+            self.options_frame.resolution_dropdown,
+            self.options_frame.audio_dropdown,
+            self.buttons_frame.fetch_button,
+            self.buttons_frame.download_video_button,
+            self.buttons_frame.download_audio_button,
+            self.buttons_frame.download_full_button,
+        ]
 
-    size_label = tk.Label(root, text="Downloaded: 0 B / 0 B")
-    size_label.pack(pady=(2, 2))
+    def _toggle_widgets_state(self, state="normal"):
+        for widget in self.interactive_widgets:
+            if isinstance(widget, ttk.Combobox):
+                widget.config(state="readonly" if state == "normal" and widget['values'] else "disabled")
+            else:
+                widget.config(state=state)
 
-    merge_label = tk.Label(root, text="...")
-    merge_label.pack(pady=(2, 10))
+    def _choose_download_path(self):
+        path = filedialog.askdirectory(title="Select Download Folder")
+        if path:
+            self.download_path_frame.path_var.set(path)
 
-    root.mainloop()
+    def fetch_options(self):
+        video_url = self.url_frame.url_entry.get().strip()
+        if not video_url:
+            messagebox.showerror("Error", "Please enter a YouTube video URL.")
+            return
 
+        self.buttons_frame.fetch_button.config(state="disabled")
+        thread = threading.Thread(target=self._fetch_data_in_thread, args=(video_url,))
+        thread.start()
 
-def fetch_options():
-    video_url = url_entry.get().strip()
-    if not video_url:
-        messagebox.showerror("Error", "Please enter a YouTube video URL.")
-        return
+    def _fetch_data_in_thread(self, video_url):
+        try:
+            from core.downloader import get_yt_instance
+            self.yt = get_yt_instance(video_url)
 
-    try:
-        # Resolutions
-        resolutions = fetch_resolutions(video_url)
-        available_resolutions.clear()
-        available_resolutions.extend(resolutions)
-        resolution_dropdown['values'] = available_resolutions
-        selected_resolution.set(available_resolutions[0])
-        resolution_dropdown.config(state='readonly')
+            # Fetch data
+            resolutions = fetch_resolutions(self.yt)
+            audio_qualities = fetch_audio_qualities(self.yt)
+            thumbnail_url = self.yt.thumbnail_url
 
-        # Audio qualities
-        audio_qualities = fetch_audio_qualities(video_url)
-        available_audio_qualities.clear()
-        available_audio_qualities.extend(audio_qualities)
-        audio_dropdown['values'] = available_audio_qualities
-        selected_audio_quality.set(available_audio_qualities[0])
-        audio_dropdown.config(state='readonly')
+            # Fetch thumbnail image
+            response = requests.get(thumbnail_url)
+            img_data = response.content
 
-    except Exception as e:
-        messagebox.showerror("Error", f"Failed to fetch video/audio info:\n{e}")
+            # Schedule UI updates on the main thread
+            self.after(0, self._update_ui_with_fetched_data, resolutions, audio_qualities, img_data)
 
+        except Exception as e:
+            self.after(0, lambda: messagebox.showerror("Error", f"Failed to fetch video/audio info:\n{e}"))
+        finally:
+            self.after(0, lambda: self.buttons_frame.fetch_button.config(state="normal"))
 
-def threaded_download(mode: str, root):
-    thread = Thread(target=lambda: handle_download(mode, root))
-    thread.start()
+    def _update_ui_with_fetched_data(self, resolutions, audio_qualities, img_data):
+        # Update thumbnail
+        img = Image.open(BytesIO(img_data))
+        img.thumbnail((240, 135))
+        photo_image = ImageTk.PhotoImage(img)
+        self.thumbnail_label.config(image=photo_image)
+        self.thumbnail_label.image = photo_image
 
+        # Update resolution dropdown
+        self.options_frame.resolution_dropdown["values"] = resolutions
+        self.selected_resolution.set(resolutions[0])
+        self.options_frame.resolution_dropdown.config(state="readonly")
 
-def handle_download(mode: str, root):
-    video_url = url_entry.get().strip()
-    resolution = selected_resolution.get()
-    audio_quality = selected_audio_quality.get()
+        # Update audio quality dropdown
+        self.options_frame.audio_dropdown["values"] = audio_qualities
+        self.selected_audio_quality.set(audio_qualities[0])
+        self.options_frame.audio_dropdown.config(state="readonly")
 
-    if not video_url:
-        root.after(0, lambda: messagebox.showerror("Error", "Please enter a YouTube video URL."))
-        return
+    def threaded_download(self, mode: str):
+        thread = threading.Thread(target=lambda: self.handle_download(mode))
+        thread.start()
 
-    if mode in ("video", "full") and not resolution:
-        root.after(0, lambda: messagebox.showerror("Error", "Please fetch and select a resolution."))
-        return
+    def handle_download(self, mode: str):
+        video_url = self.url_frame.url_entry.get().strip()
+        resolution = self.selected_resolution.get()
+        audio_quality = self.selected_audio_quality.get()
+        output_path = self.download_path_frame.path_var.get()
 
-    if mode in ("audio", "full") and not audio_quality:
-        root.after(0, lambda: messagebox.showerror("Error", "Please fetch and select an audio quality."))
-        return
+        if not video_url or not self.yt:
+            self.after(0, lambda: messagebox.showerror("Error", "Please fetch video details first."))
+            return
 
-    try:
-        root.after(0, lambda: progress_var.set(0))
-        root.after(0, lambda: progress_label.config(text="Progress: 0%"))
-        root.after(0, lambda: size_label.config(text="Downloaded: 0 B / 0 B"))
-        root.after(0, lambda: merge_label.config(text=""))
-        root.after(0, root.update_idletasks)
+        if mode in ("video", "full") and not resolution:
+            self.after(0, lambda: messagebox.showerror("Error", "Please fetch and select a resolution."))
+            return
 
-        tracker = ProgressTracker(progress_var, progress_label, size_label)
+        if mode in ("audio", "full") and not audio_quality:
+            self.after(0, lambda: messagebox.showerror("Error", "Please fetch and select an audio quality."))
+            return
 
-        if mode == "video":
-            download_video(video_url, resolution, tracker, root)
-        elif mode == "audio":
-            download_audio(video_url, tracker, abr=audio_quality, root=root)
-        elif mode == "full":
-            download_video_audio(video_url, resolution, tracker, merge_label, root)
+        self._toggle_widgets_state("disabled")
+        try:
+            self.after(0, lambda: self.progress_var.set(0))
+            self.after(0, lambda: self.progress_frame.progress_label.config(text="Progress: 0%"))
+            self.after(0, lambda: self.progress_frame.size_label.config(text="Downloaded: 0 B / 0 B"))
+            self.after(0, lambda: self.progress_frame.merge_label.config(text=""))
+            self.after(0, self.update_idletasks)
 
-    except Exception as e:
-        root.after(0, lambda: messagebox.showerror("Error", f"An error occurred:\n{e}"))
+            tracker = ProgressTracker(
+                self.progress_var, self.progress_frame.progress_label, self.progress_frame.size_label, self
+            )
+
+            if mode == "video":
+                download_video(self.yt, resolution, tracker, self, output_path=output_path)
+            elif mode == "audio":
+                download_audio(self.yt, tracker, abr=audio_quality, root=self, output_path=output_path)
+            elif mode == "full":
+                download_video_audio(self.yt, resolution, tracker, self.progress_frame.merge_label, self,
+                                     output_path=output_path)
+
+        except Exception as e:
+            self.after(0, lambda: messagebox.showerror("Error", f"An error occurred:\n{e}"))
+        finally:
+            self._toggle_widgets_state("normal")

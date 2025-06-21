@@ -1,0 +1,5 @@
+ttkbootstrap==1.13.11
+pytubefix==9.2.0
+imageio-ffmpeg==0.6.0
+requests==2.32.4
+Pillow==11.2.1

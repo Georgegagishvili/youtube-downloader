@@ -1,4 +1,5 @@
-from gui import create_main_window
+from gui import App
 
 if __name__ == "__main__":
-    create_main_window()
+    app = App()
+    app.mainloop()

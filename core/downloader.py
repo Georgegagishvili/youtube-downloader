@@ -1,6 +1,7 @@
-from pytubefix import YouTube
 import tkinter as tk
+
 from typing import Optional
+from pytubefix import YouTube
 from .ffmpeg import merge_video_audio
 from .progress import ProgressTracker
 
@@ -14,15 +15,13 @@ def get_yt_instance(url: str) -> YouTube:
     return _yt_cache[url]
 
 
-def fetch_resolutions(video_url: str) -> list[str]:
-    yt = get_yt_instance(video_url)
+def fetch_resolutions(yt: YouTube) -> list[str]:
     streams = yt.streams.filter(progressive=False, file_extension='mp4', only_video=True)
     resolutions = {s.resolution for s in streams if s.resolution and s.resolution.endswith("p")}
     return sorted(resolutions, key=lambda x: int(x.replace("p", "")), reverse=True)
 
 
-def fetch_audio_qualities(video_url: str) -> list[str]:
-    yt = get_yt_instance(video_url)
+def fetch_audio_qualities(yt: YouTube) -> list[str]:
     streams = yt.streams.filter(only_audio=True)
     bit_rates = {s.abr for s in streams if s.abr and s.abr.endswith("kbps")}
     return sorted(bit_rates, key=lambda x: int(x.replace("kbps", "")), reverse=True)
@@ -39,8 +38,7 @@ def make_on_progress_callback(total_size: int, tracker: ProgressTracker, root: t
     return on_progress
 
 
-def download_video(url: str, resolution: str, tracker: ProgressTracker, root: tk.Tk):
-    yt = get_yt_instance(url)
+def download_video(yt: YouTube, resolution: str, tracker: ProgressTracker, root: tk.Tk, output_path: str = "."):
     stream = yt.streams.filter(
         progressive=False, file_extension='mp4', resolution=resolution
     ).first()
@@ -49,13 +47,13 @@ def download_video(url: str, resolution: str, tracker: ProgressTracker, root: tk
         raise Exception(f"Video stream not found for resolution {resolution}.")
 
     yt.register_on_progress_callback(make_on_progress_callback(stream.filesize or 0, tracker, root))
-    stream.download(output_path=".", filename="video_only.mp4")
+    stream.download(output_path=output_path, filename="video_only.mp4")
 
     print("Note: This is a video-only file and may not play properly in some players.")
 
 
-def download_audio(url: str, tracker: ProgressTracker, root: tk.Tk, abr: Optional[str] = None):
-    yt = get_yt_instance(url)
+def download_audio(yt: YouTube, tracker: ProgressTracker, root: tk.Tk, abr: Optional[str] = None,
+                   output_path: str = "."):
     stream_query = yt.streams.filter(only_audio=True)
 
     if abr:
@@ -67,18 +65,17 @@ def download_audio(url: str, tracker: ProgressTracker, root: tk.Tk, abr: Optiona
         raise Exception(f"No audio stream found for quality '{abr or 'best'}'.")
 
     yt.register_on_progress_callback(make_on_progress_callback(stream.filesize or 0, tracker, root))
-    stream.download(output_path=".", filename="audio_only.mp4")
+    stream.download(output_path=output_path, filename="audio_only.mp4")
 
 
-def download_video_audio(url: str, resolution: str, tracker: ProgressTracker, merge_label, root):
-    yt = get_yt_instance(url)
-
+def download_video_audio(yt: YouTube, resolution: str, tracker: ProgressTracker, merge_label, root,
+                         output_path: str = "."):
     video_stream = yt.streams.filter(progressive=False, file_extension='mp4', resolution=resolution).first()
     if not video_stream:
         raise Exception(f"Video stream not found for resolution {resolution}.")
 
     yt.register_on_progress_callback(make_on_progress_callback(video_stream.filesize or 0, tracker, root))
-    video_stream.download(output_path=".", filename="temp_video.mp4")
+    video_stream.download(output_path=output_path, filename="temp_video.mp4")
 
     root.after(0, lambda: tracker.update(0, 1))
     root.after(0, root.update_idletasks)
@@ -88,12 +85,15 @@ def download_video_audio(url: str, resolution: str, tracker: ProgressTracker, me
         raise Exception("No audio stream found.")
 
     yt.register_on_progress_callback(make_on_progress_callback(audio_stream.filesize or 0, tracker, root))
-    audio_stream.download(output_path=".", filename="temp_audio.mp4")
+    audio_stream.download(output_path=output_path, filename="temp_audio.mp4")
 
     root.after(0, lambda: merge_label.config(text="Merging video and audio..."))
     root.after(0, root.update_idletasks)
 
-    merge_video_audio(label=merge_label)
+    merge_video_audio(video_path=f"{output_path}/temp_video.mp4",
+                      audio_path=f"{output_path}/temp_audio.mp4",
+                      output_path=f"{output_path}/video.mp4",
+                      label=merge_label)
 
     root.after(0, lambda: merge_label.config(text="Merging complete!"))
     root.after(0, lambda: tracker.update(audio_stream.filesize or 0, audio_stream.filesize or 0))
