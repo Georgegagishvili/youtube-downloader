@@ -14,6 +14,11 @@ Built with Python and `ttkbootstrap`, this tool provides a simple graphical inte
 - **Custom Download Path**: A "Browse" button allows you to select any folder on your computer to save your downloads.
 - **Real-time Progress**: A progress bar and text labels provide instant feedback on download speed, size, and status.
 
+## Download
+
+For a simple, one-click experience, you can download the latest pre-compiled executable for your operating system
+from the **[releases](https://github.com/Georgegagishvili/youtube-downloader/releases)** page.
+
 ## Getting Started
 
 ### Installation
