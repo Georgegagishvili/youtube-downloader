@@ -1,0 +1,23 @@
+
+# Distribution / packaging
+/dist/
+/build/
+
+# PyInstaller
+*.spec
+
+# Video files (large binaries)
+*.mp4
+
+# VSCode settings (optional, if you use VSCode)
+.vscode/
+
+# Environment files
+.env
+venv/
+env/
+.venv/
+
+# Logs and databases (soon)
+*.log
+*.sqlite3
