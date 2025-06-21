@@ -1,4 +1,6 @@
 __pycache__/
+*.py[codz]
+*$py.class
 
 # Distribution / packaging
 /dist/
@@ -18,10 +20,10 @@ __pycache__/
 
 # Environment files
 .env
-venv/
+.envrc
+.venv
 env/
-.venv/
-
-# Logs and databases (soon)
-*.log
-*.sqlite3
+venv/
+ENV/
+env.bak/
+venv.bak/
