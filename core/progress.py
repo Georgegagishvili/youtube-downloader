@@ -8,7 +8,10 @@ class ProgressTracker:
         self.size_label = size_label
 
     def update(self, downloaded, total):
-        percentage = int(downloaded / total * 100)
+        if total == 0:
+            percentage = 0
+        else:
+            percentage = int(downloaded / total * 100)
         self.progress_var.set(percentage)
         self.progress_label.config(text=f"Progress: {percentage}%")
         self.size_label.config(
