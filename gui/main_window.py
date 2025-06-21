@@ -71,14 +71,14 @@ class App(ttk.Window):
         self.buttons_frame.grid(row=1, column=0, sticky="ew")
 
         # Blank image as a placeholder to prevent UI displacement
-        placeholder_img = Image.new('RGB', (240, 135), color='#ECECEC')
+        placeholder_img = Image.new('RGB', (180, 135), color='#333333')
         self.placeholder_photo = ImageTk.PhotoImage(placeholder_img)
         self.thumbnail_label = ttk.Label(
             details_frame,
             image=self.placeholder_photo,
             text="Image Preview",
             compound="center",
-            foreground="black"
+            foreground="gray"
         )
         self.thumbnail_label.grid(row=0, column=1, rowspan=2, padx=(20, 0), sticky="ne")
 
@@ -114,6 +114,11 @@ class App(ttk.Window):
             messagebox.showerror("Error", "Please enter a YouTube video URL.")
             return
 
+        # Reset download buttons to secondary style while fetching new data
+        self.buttons_frame.download_video_button.config(bootstyle="secondary")
+        self.buttons_frame.download_audio_button.config(bootstyle="secondary")
+        self.buttons_frame.download_full_button.config(bootstyle="secondary")
+
         self.buttons_frame.fetch_button.config(state="disabled")
         thread = threading.Thread(target=self._fetch_data_in_thread, args=(video_url,))
         thread.start()
@@ -145,7 +150,7 @@ class App(ttk.Window):
         img = Image.open(BytesIO(img_data))
         img.thumbnail((240, 135))
         photo_image = ImageTk.PhotoImage(img)
-        self.thumbnail_label.config(image=photo_image, text="")
+        self.thumbnail_label.config(image=photo_image, text="")  # Remove placeholder text
         self.thumbnail_label.image = photo_image
 
         # Update resolution dropdown
@@ -157,6 +162,11 @@ class App(ttk.Window):
         self.options_frame.audio_dropdown["values"] = audio_qualities
         self.selected_audio_quality.set(audio_qualities[0])
         self.options_frame.audio_dropdown.config(state="readonly")
+
+        # Update download button styles to primary to indicate they are active
+        self.buttons_frame.download_video_button.config(bootstyle="primary")
+        self.buttons_frame.download_audio_button.config(bootstyle="primary")
+        self.buttons_frame.download_full_button.config(bootstyle="primary")
 
     def threaded_download(self, mode: str):
         thread = threading.Thread(target=lambda: self.handle_download(mode))
