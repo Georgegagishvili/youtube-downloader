@@ -1,4 +1,4 @@
-from core import format_bytes
+from .utils import format_bytes
 
 
 class ProgressTracker:

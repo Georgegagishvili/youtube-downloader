@@ -1,6 +1,6 @@
 from pytubefix import YouTube
-from core import merge_video_audio
-from core import ProgressTracker
+from .ffmpeg import merge_video_audio
+from .progress import ProgressTracker
 
 
 def fetch_resolutions(video_url):
